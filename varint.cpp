@@ -20,6 +20,8 @@
 #include <random>
 #include <vector>
 
+#include "compiler.h"
+
 using namespace std;
 
 // How many uint64_t numbers in the vector we're compressing.
@@ -42,18 +44,6 @@ gen_log_uniform(size_t n)
   while (vec.size() < n)
     vec.push_back(exp(dist(gen)));
   return vec;
-}
-
-static inline unsigned
-count_leading_zeros_64(uint64_t x)
-{
-  return __builtin_clzll(x);
-}
-
-static inline unsigned
-count_trailing_zeros_32(uint32_t x)
-{
-  return __builtin_ctz(x);
 }
 
 vector<uint8_t>
@@ -109,14 +99,6 @@ varint_encode(const vector<uint64_t>& in)
   return out;
 }
 
-uint64_t
-uload(const uint8_t* p)
-{
-  uint64_t x;
-  memcpy(&x, p, 8);
-  return x;
-}
-
 static inline size_t
 varint_length(const uint8_t* p)
 {
@@ -128,9 +110,9 @@ varint_decode(const uint8_t* p, size_t length)
 {
   if (length < 9) {
     size_t unused = 64 - 8 * length;
-    return uload(p) << unused >> (unused + length);
+    return unaligned_load_u64(p) << unused >> (unused + length);
   } else {
-    return uload(p + 1);
+    return unaligned_load_u64(p + 1);
   }
 }
 
