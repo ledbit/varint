@@ -36,9 +36,13 @@ vector<uint8_t> leb128_encode(const vector<uint64_t> &in) {
 // behavior by shifting too far.
 void leb128_decode(const uint8_t *in, uint64_t *out, size_t count) {
   while (count-- > 0) {
-    uint64_t value = 0;
-    unsigned shift = 0;
-    uint8_t byte;
+    uint8_t byte = *in++;
+    if (LIKELY(byte < 128)) {
+      *out++ = byte;
+      continue;
+    }
+    uint64_t value = byte & 0x7f;
+    unsigned shift = 7;
     do {
       byte = *in++;
       value |= uint64_t(byte & 0x7f) << shift;
