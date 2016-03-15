@@ -16,6 +16,8 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
+#include <cinttypes>
 #include <random>
 
 #include "compiler.h"
@@ -23,36 +25,65 @@
 
 using namespace std;
 
-// How many uint64_t numbers in the vector we're compressing.
-const size_t N = 100000;
-
-// Maximum significant bits in the log-uniform random numbers.
-const unsigned random_bits = 64;
-
 // Generate n log-uniform random numbers.
-vector<uint64_t> gen_log_uniform(size_t n) {
+vector<uint64_t> gen_log_uniform() {
+
+  // How many uint64_t numbers in the vector we're compressing.
+  const size_t N = 100000;
+
+  // Maximum significant bits in the log-uniform random numbers.
+  const unsigned random_bits = 64;
+
   default_random_engine gen;
   uniform_real_distribution<double> dist(0.0, random_bits * log(2));
   vector<uint64_t> vec;
 
-  vec.reserve(n);
-  while (vec.size() < n)
+  vec.reserve(N);
+  while (vec.size() < N)
     vec.push_back(exp(dist(gen)));
   return vec;
 }
 
-double time_decode(const uint8_t *in, uint64_t *out, decoder_func func,
+// Read test vector from a file.
+//
+// Format: One unsigned number per line.
+vector<uint64_t> read_test_vector(const char *filename) {
+  FILE *f = fopen(filename, "r");
+  if (!f) {
+    perror(filename);
+    exit(1);
+  }
+
+  vector<uint64_t> vec;
+  while (!feof(f)) {
+    uint64_t val;
+    int rc = fscanf(f, "%" SCNu64 "\n", &val);
+    if (rc == 1) {
+      vec.push_back(val);
+    } else if (rc == EOF) {
+      if (ferror(f)) {
+        perror(filename);
+        exit(1);
+      } else {
+        break;
+      }
+    }
+  }
+  return vec;
+}
+
+double time_decode(const uint8_t *in, vector<uint64_t> &out, decoder_func func,
                    unsigned repetitions) {
   using namespace chrono;
   auto before = high_resolution_clock::now();
   for (unsigned n = 0; n < repetitions; n++)
-    func(in, out, N);
+    func(in, out.data(), out.size());
   auto after = high_resolution_clock::now();
   auto ns = duration_cast<nanoseconds>(after - before).count();
   return double(ns) / 1e9;
 }
 
-double measure(const uint8_t *in, uint64_t *out, decoder_func func) {
+double measure(const uint8_t *in, vector<uint64_t> &out, decoder_func func) {
   unsigned repetitions = 1;
   double runtime = time_decode(in, out, func, repetitions);
   while (runtime < 1) {
@@ -74,7 +105,7 @@ double do_codec(const codec_descriptor &codec,
          double(encoded.size()) / numbers.size());
   fflush(stdout);
 
-  double dtime = measure(encoded.data(), buffer.data(), codec.decoder);
+  double dtime = measure(encoded.data(), buffer, codec.decoder);
   assert(buffer == numbers);
 
   printf("%s: %.3e secs.\n", codec.name, dtime);
@@ -82,8 +113,16 @@ double do_codec(const codec_descriptor &codec,
   return dtime;
 }
 
-int main() {
-  auto numbers = gen_log_uniform(N);
+int main(int argc, const char *argv[]) {
+  vector<uint64_t> numbers;
+
+  if (argc == 2) {
+    numbers = read_test_vector(argv[1]);
+    printf("Read %zu integers from %s.\n", numbers.size(), argv[1]);
+  } else {
+    numbers = gen_log_uniform();
+    printf("Generated %zu log-uniform integers.\n", numbers.size());
+  }
 
   double leb128 = do_codec(leb128_codec, numbers);
   double prefix = do_codec(prefix_codec, numbers);
