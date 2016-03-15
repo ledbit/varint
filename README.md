@@ -16,9 +16,19 @@ integer encoding:
 We don't measure encoding speed here since it is less relevant for WebAssembly
 as long as it is reasonable.
 
-Note that the C++ code in this repository is *not production quality*. Like
-most C++ code, it can be tricked into executing _undefined behavior_ by
-maliciously formed input.
+Other desirable properties of a variable-length encoding:
+
+- Can the length of the whole encoded integer be determined from the first byte?
+  This makes it faster to skip over numbers that are not needed, and it can
+  improve instruction-level parallelism when decoding multiple consequtive
+  numbers.
+- Patchability. Is it possible to reserve space for an unknown number, and write
+  it back later? This requires a non-canonical encoding where a small number can
+  be encoded with a larger length than strictly necessary.
+
+Note that the C++ code in this repository is *not production quality*, and it
+can be tricked into executing _undefined behavior_ by maliciously formed input.
+
 
 LEB128
 ------
@@ -32,6 +42,7 @@ indicates if there are more bytes coming.
     1xxxxxxx 0xxxxxxx           14 bits in 2 bytes
     1xxxxxxx 1xxxxxxx 0xxxxxxx  21 bits in 3 bytes
     ...
+
 
 PrefixVarint
 ------------
@@ -58,23 +69,23 @@ PrefixVarint-encoded number can be determined from the first byte. (UTF-8 is
 not considered here since it only encodes 6 bits per byte due to design
 constraints that are not relevant to WebAssembly.)
 
-SQLite
+
+leSQLite
 ------
 The [SQLite variable-length integer
 encoding](https://sqlite.org/src4/doc/trunk/www/varint.wiki) is biased towards
 integer distributions with more small numbers. It can encode the integers 0-240
-in one byte. The first byte, `A[0]` determines the encoding:
+in one byte.
 
-    0-240   1 byte   A[0]
-    241-248 2 bytes  240+256*(A[0]-241)+A[1]
-    249     3 bytes  2288+256*A[1]+A[2]
-    250     4 bytes  A[1..3]
-    251     5 bytes  A[1..4]
-    252     6 bytes  A[1..4]
-    253     7 bytes  A[1..4]
-    254     8 bytes  A[1..4]
-    255     9 bytes  A[1..8]
+The encoding implemented here is modified for petter performance with
+WebAssembly (little-endian SQLite). The first byte, `B0` determines the
+encoding:
 
-This encoding is big-endian, and also has the property that lexicographical and
-numerical orderings are the same. This is not important for WebAssembly. We
-would probably modify it to be little-endian for improved decoding speed.
+    0-184   1 byte    value = B0
+    185-248 2 bytes   value = 185 + 256 * (B0 - 185) + B1
+    249-255 3-9 bytes value = (B0 - 249 + 2) little-endian bytes following B0.
+
+This encoding packs more than 7 bits into 1 byte and a bit more than 14 bits
+into 2 bytes. This has a cost in encoding size since the 3-byte encoding only
+holds 16 bits. The 3+ byte encoded numbers are very fast to decode with an
+unaligned load instruction.

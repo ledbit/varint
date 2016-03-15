@@ -14,10 +14,10 @@
 
 #include <cassert>
 #include <chrono>
+#include <cinttypes>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
-#include <cinttypes>
 #include <random>
 
 #include "compiler.h"
@@ -126,6 +126,8 @@ int main(int argc, const char *argv[]) {
 
   double leb128 = do_codec(leb128_codec, numbers);
   double prefix = do_codec(prefix_codec, numbers);
+  double sqlite = do_codec(lesqlite_codec, numbers);
 
   printf("T(LEB128) / T(PrefixVarint) = %.3f.\n", leb128 / prefix);
+  printf("T(LEB128) / T(leSQLite) = %.3f.\n", leb128 / sqlite);
 }
