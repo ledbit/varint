@@ -11,4 +11,7 @@ varint: $(patsubst %.cpp,%.o,$(wildcard *.cpp))
 clean:
 	$(RM) *.o *.d varint
 
+format:
+	clang-format -i *.cpp
+
 -include *.d
