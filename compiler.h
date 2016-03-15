@@ -42,3 +42,6 @@ unaligned_load_u64(const uint8_t* p)
   std::memcpy(&x, p, 8);
   return x;
 }
+
+// Hint to the compiler that X is probably true.
+#define LIKELY(X) __builtin_expect(!!(X), 1)

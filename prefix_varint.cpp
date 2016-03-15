@@ -53,9 +53,13 @@ inline uint64_t prefix_get(const uint8_t *p, size_t length) {
 
 void prefix_decode(const uint8_t *in, uint64_t *out, size_t count) {
   while (count-- > 0) {
-    size_t length = prefix_length(in);
-    *out++ = prefix_get(in, length);
-    in += length;
+    if (LIKELY(*in & 1)) {
+      *out++ = *in++ >> 1;
+    } else {
+      size_t length = prefix_length(in);
+      *out++ = prefix_get(in, length);
+      in += length;
+    }
   }
 }
 
