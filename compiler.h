@@ -43,5 +43,15 @@ unaligned_load_u64(const uint8_t* p)
   return x;
 }
 
+// Load an unsigned 16-bit number from an unaligned address.
+// This will usually be translated into one instruction.
+inline uint16_t
+unaligned_load_u16(const uint8_t* p)
+{
+  uint16_t x;
+  std::memcpy(&x, p, 8);
+  return x;
+}
+
 // Hint to the compiler that X is probably true.
 #define LIKELY(X) __builtin_expect(!!(X), 1)

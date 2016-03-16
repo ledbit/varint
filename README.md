@@ -26,7 +26,7 @@ Other desirable properties of a variable-length encoding:
   it back later? This requires a non-canonical encoding where a small number can
   be encoded with a larger length than strictly necessary.
 
-Note that the C++ code in this repository is *not production quality*, and it
+Note that the C++ code in this repository is **not production quality**, and it
 can be tricked into executing _undefined behavior_ by maliciously formed input.
 
 
@@ -71,7 +71,7 @@ constraints that are not relevant to WebAssembly.)
 
 
 leSQLite
-------
+--------
 The [SQLite variable-length integer
 encoding](https://sqlite.org/src4/doc/trunk/www/varint.wiki) is biased towards
 integer distributions with more small numbers. It can encode the integers 0-240
@@ -89,3 +89,27 @@ This encoding packs more than 7 bits into 1 byte and a bit more than 14 bits
 into 2 bytes. This has a cost in encoding size since the 3-byte encoding only
 holds 16 bits. The 3+ byte encoded numbers are very fast to decode with an
 unaligned load instruction.
+
+
+leSQLite2
+---------
+A second variation of the SQLite-inspired encoding has a smoother bump between
+the 2-byte and 3-byte encodings. It divides the values of the first byte into 4
+ranges:
+
+1. The value of a 1-byte encoding.
+2. The high 6 bits of a 2-byte encoding.
+3. The high 3 bits of a 3-byte encoding.
+4. The number of bytes in a 4-9 byte encoding.
+
+The ranges are assigned like this:
+
+| B0      | Values     | Formula                              |
+| ------- | ---------- | ------------------------------------ |
+| 0-177   | 177        | `B0`                                 |
+| 178-241 | 2^14       | `178 + ((B0-178) << 8) + B[1]`       |
+| 242-249 | 2^19       | `16562 + ((B0-242) << 16) + B[1..2]` |
+| 250-255 | 2^24..2^64 | `B0 - 250 + 3` little-endian bytes.  |
+
+This variant is a bit slower to decode than the first one because there are more
+cases.
