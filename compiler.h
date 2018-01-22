@@ -49,7 +49,7 @@ inline uint16_t
 unaligned_load_u16(const uint8_t* p)
 {
   uint16_t x;
-  std::memcpy(&x, p, 8);
+  std::memcpy(&x, p, 2);
   return x;
 }
 
