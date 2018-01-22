@@ -113,3 +113,21 @@ The ranges are assigned like this:
 
 This variant is a bit slower to decode than the first one because there are more
 cases.
+
+
+Sample output
+-------------
+```
+Generated 100000 log-uniform integers.
+LEB128: 5.076 bytes/integer.
+LEB128: 1.165e-03 secs.
+PrefixVarint: 5.060 bytes/integer.
+PrefixVarint: 5.693e-04 secs.
+leSQLite: 5.285 bytes/integer.
+leSQLite: 4.043e-04 secs.
+leSQLite2: 5.239 bytes/integer.
+leSQLite2: 4.815e-04 secs.
+T(LEB128) / T(PrefixVarint) = 2.047.
+T(LEB128) / T(leSQLite) = 2.882.
+T(LEB128) / T(leSQLite2) = 2.420.
+```
